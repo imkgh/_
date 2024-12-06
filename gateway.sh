@@ -78,8 +78,7 @@ while ((retry_count++ <= max_retry));do
         printf "\033[s"
         read -rp "Require a file: " a_file < /dev/tty
         read -ra a_args -p "Args[Optional]: " < /dev/tty
-        # tput rc
-        # tput el
+        # tput rc; tput el
         printf "\033[u\033[K"
         [ -n "$a_file" ] && break
     done
@@ -89,8 +88,7 @@ while ((retry_count++ <= max_retry));do
         # tput sc
         printf "\033[s"
         read -rsp "Enter your password: " password < /dev/tty
-        # tput rc
-        # tput el
+        # tput rc; tput el
         printf "\033[u\033[K"
         # echo
         [ -n "$password" ] && break
@@ -125,6 +123,7 @@ while ((retry_count++ <= max_retry));do
 
     case "${http_code}" in
         200) ;;
+        500) is_verified=1;;
         *)  echo "Error: HTTP request failed with code ${http_code}";
             continue;;
     esac
