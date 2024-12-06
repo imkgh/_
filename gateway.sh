@@ -147,7 +147,7 @@ while ((retry_count++ <= max_retry));do
             ;;
         esac
     elif [ "$mode" = "dl" ];then
-        if [ ! -s "$c_file" ] || [ "$is_file" == "0" ];then
+        if [ ! -s "$c_file" ] || [ "$is_file" == "0" ] || [ "$file_stem" == "" ];then
             continue
         fi
         mv "$c_file" "$file_stem.$file_ext"
