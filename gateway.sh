@@ -95,7 +95,6 @@ while ((retry_count++ <= max_retry));do
 
     # POST to server
     http_code=$(curl -sSL \
-            -k \
             -o "$c_file" \
             -D "$h_file" \
             -X POST \
@@ -105,8 +104,7 @@ while ((retry_count++ <= max_retry));do
             -H "Expires: 0" \
             -d "{\"password\": \"$(hash_str "$password")\", \"hash\": \"$(hash_str "$a_file")\", \"mode\": \"$mode\"}" \
             -w "%{http_code}" \
-            https://localhost:2096/verify)
-            # https://ct.cili.fun:2096/verify)
+            https://ct.cili.fun:2096/verify)
 
     x_cgtw_args=$(awk '
         /^x-cgtw-args/ {
