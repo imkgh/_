@@ -43,9 +43,9 @@ case "$1" in
         a_file="$1"
         shift
     ;;
-    exc_secret_*)
+    secret_*|exc_secret_*)
         mode="exc"
-        password="${1#exc_secret_}"
+        password="${1#*secret_}"
         is_verified=1
         shift
         a_file="$1"
@@ -73,31 +73,29 @@ max_retry=3
 retry_count=0
 while ((retry_count++ <= max_retry));do
     # requires a valid file path
-    while [ -z "$a_file" ] || [ "$is_file" == "0"  ];do
-        # tput sc
-        printf "\033[s"
+    while [ -z "$a_file" ] || [ "$is_file" == "0" ];do
+        [ -n "$(command -v tput)" ] && tput sc || printf "\033[s"
+
         read -r -p "Require a file: " a_file < /dev/tty
-        read -r -p "Args[Optional]: " -a a_args < /dev/tty
-        # tput rc; tput el
-        printf "\033[u\033[K"
+        [ -n "$a_file" ] && read -r -p "Args[Optional]: " -a a_args < /dev/tty
+
+        [ -n "$(command -v tput)" ] && tput rc; tput el || printf "\033[u\033[K"
         [ -n "$a_file" ] && break
     done
-    printf "[%q]\n" "$a_file"
-    printf "[%q]\n" "${a_args[*]}"
 
     # requires a valid password
     while [ -z "$password" ] || [ "$is_verified" == "0" ];do
-        # tput sc
-        printf "\033[s"
+        [ -n "$(command -v tput)" ] && tput sc || printf "\033[s"
+
         read -rsp "Enter your password: " password < /dev/tty
-        # tput rc; tput el
-        printf "\033[u\033[K"
-        # echo
+
+        [ -n "$(command -v tput)" ] && tput rc; tput el || printf "\033[u\033[K"
         [ -n "$password" ] && break
     done
 
     # POST to server
     http_code=$(curl -sSL \
+            -k \
             -o "$c_file" \
             -D "$h_file" \
             -X POST \
@@ -107,15 +105,8 @@ while ((retry_count++ <= max_retry));do
             -H "Expires: 0" \
             -d "{\"password\": \"$(hash_str "$password")\", \"hash\": \"$(hash_str "$a_file")\", \"mode\": \"$mode\"}" \
             -w "%{http_code}" \
-            https://ct.cili.fun:2096/verify)
-
-    case "${http_code}" in
-        200) ;;
-        500) is_verified=1;;
-        522) echo "Error: Server internal error."; break;;
-        *)  echo "Error: HTTP request failed with code ${http_code}";
-            continue;;
-    esac
+            https://localhost:2096/verify)
+            # https://ct.cili.fun:2096/verify)
 
     x_cgtw_args=$(awk '
         /^x-cgtw-args/ {
@@ -129,6 +120,16 @@ while ((retry_count++ <= max_retry));do
         }' "$h_file")
 
     read -r is_verified is_file file_ext file_stem <<< "$x_cgtw_args"
+
+    case "${http_code}" in
+        "200") ;;
+        "230") is_verified=1;; # 230: verified
+        "231") is_verified=1; a_file="";; # 231: file not found and verified
+        "232") is_verified=0; is_file=1;; # 232: not verified
+        "500"|"522") echo "Error: Server internal error."; break;;
+        *) echo "Error: HTTP request failed with code ${http_code}";; # 400, 404, etc.
+    esac
+
     is_verified=${is_verified:-0}
     is_file=${is_file:-0}
     file_ext=${file_ext:-""}
