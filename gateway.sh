@@ -77,7 +77,9 @@ while ((retry_count++ <= max_retry));do
         [ -n "$(command -v tput)" ] && tput sc || printf "\033[s"
 
         read -r -p "Require a file: " a_file < /dev/tty
-        [ -n "$a_file" ] && read -r -p "Args[Optional]: " -a a_args < /dev/tty
+        if [ -n "$a_file" ] && [ "$mode" == "exc" ];then
+            read -r -p "Args[Optional]: " -a a_args < /dev/tty
+        fi
 
         [ -n "$(command -v tput)" ] && tput rc; tput el || printf "\033[u\033[K"
         [ -n "$a_file" ] && break
