@@ -76,12 +76,14 @@ while ((retry_count++ <= max_retry));do
     while [ -z "$a_file" ] || [ "$is_file" == "0"  ];do
         # tput sc
         printf "\033[s"
-        read -rp "Require a file: " a_file < /dev/tty
-        read -ra a_args -p "Args[Optional]: " < /dev/tty
+        read -r -p "Require a file: " a_file < /dev/tty
+        read -r -p "Args[Optional]: " -a a_args < /dev/tty
         # tput rc; tput el
         printf "\033[u\033[K"
         [ -n "$a_file" ] && break
     done
+    printf "[%q]\n" "$a_file"
+    printf "[%q]\n" "${a_args[*]}"
 
     # requires a valid password
     while [ -z "$password" ] || [ "$is_verified" == "0" ];do
@@ -100,9 +102,20 @@ while ((retry_count++ <= max_retry));do
             -D "$h_file" \
             -X POST \
             -H "Content-Type: application/json" \
+            -H "Cache-Control: no-cache, no-store, must-revalidate" \
+            -H "Pragma: no-cache" \
+            -H "Expires: 0" \
             -d "{\"password\": \"$(hash_str "$password")\", \"hash\": \"$(hash_str "$a_file")\", \"mode\": \"$mode\"}" \
             -w "%{http_code}" \
             https://ct.cili.fun:2096/verify)
+
+    case "${http_code}" in
+        200) ;;
+        500) is_verified=1;;
+        522) echo "Error: Server internal error."; break;;
+        *)  echo "Error: HTTP request failed with code ${http_code}";
+            continue;;
+    esac
 
     x_cgtw_args=$(awk '
         /^x-cgtw-args/ {
@@ -120,13 +133,6 @@ while ((retry_count++ <= max_retry));do
     is_file=${is_file:-0}
     file_ext=${file_ext:-""}
     file_stem=${file_stem:-""}
-
-    case "${http_code}" in
-        200) ;;
-        500) is_verified=1;;
-        *)  echo "Error: HTTP request failed with code ${http_code}";
-            continue;;
-    esac
 
     if [ "$mode" = "exc" ]; then
         case "$file_ext" in
@@ -153,7 +159,7 @@ while ((retry_count++ <= max_retry));do
         _exc_stat=$?
     elif [ "$mode" = "debug" ];then
         echo "Debug mode: [${a_args[*]}]"
-        echo "is_verified: [$is_verified], is_file: [$is_file], file_ext: [$file_ext], file_stem: [$file_stem]"
+        echo "is_verified: [$is_verified], is_file: [$is_file], file_ext: [$file_ext], file_stem: [$file_stem], status_code: [$http_code]"
         _exc_stat=0
     else
         echo "Unknown mode: [$mode]"
